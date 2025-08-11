@@ -1,0 +1,29 @@
+# Python 캐시 파일
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 환경변수 파일
+.env
+.env.*
+
+# 로그 파일
+*.log
+
+# 빌드/출력 디렉토리
+/build/
+/dist/
+output/
+results/
+temp/
+
+# Node.js 관련 (예: 클라이언트 모듈)
+node_modules/
+
+# uv 관련 생성 파일 및 임시 파일 (프로젝트에 따라 추가)
+uv_*.log
+uv-*
+
+# CrewAI 관련 임시 파일 (프로젝트에 따라 수정)
+crewai_output/
+crewai_cache/
