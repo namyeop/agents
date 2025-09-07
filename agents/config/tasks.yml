@@ -1,0 +1,52 @@
+meme_research_task:
+  description: >
+    주어진 주제에 대해 최신 밈, 유행어, 관련 키워드를 조사한다.
+    트렌드 소스(레딧, 트위터, 틱톡, 구글 트렌드 등)에서 인기 있는 밈과 키워드를 수집한다.
+    각 밈/키워드에 대한 간단한 설명과, 스레드에 어떻게 활용할 수 있을지 제안한다.
+  expected_output: >
+    밈/키워드 목록과 설명, 활용 제안을 포함한 표 형식의 조사 결과.
+  agent: meme_crafter_agent
+  input_vars: [topic]
+  verbose: true
+
+write_thread_task:
+  description: >
+    아래 입력으로 주어진 주제에 대해, 스크롤을 멈추게 하는 첫 줄과 명확한 전개,
+    안전한 논쟁 포인트, 밈/키워드 반영, 강력한 콜투액션을 포함한 스레드 글을 작성한다.
+    
+    topic: {{topic}} (예: "생산성 향상을 위한 5가지 팁")
+    target_audience: {{target_audience}}
+    platform: {{platform}} (예: "트위터", "레딧", "링크드인")
+
+    톤은 플랫폼 맥락에 맞추고, 과장/허위/인신공격/과도한 클릭베이트는 피한다.
+  expected_output: >
+    플랫폼 최적화 문체의 스레드 초안. 구성: 제목/훅 1~2줄, 본문 4~8 포인트,
+    밈이나 예시 1~2개, 마지막에 댓글을 부르는 질문 또는 간단 선택지.
+  agent: hooksmith_agent
+  input_vars: [topic, target_audience, platform, constraints]
+  verbose: true
+  context: [meme_research]
+
+viral_score_task:
+  description: >
+    작성된 스레드를 0~100 범위로 채점한다. 하위 지표는 훅(25), 신선도/차별성(20),
+    명확성/가독성(20), 공유 가능성/저작권 위험 최소화(20), 댓글 유도성(15)로 가중치를 둔다.
+    점수 근거와 개선 제안을 함께 제시한다.
+  expected_output: >
+    JSON 문자열: {"total": number, "breakdown": {"hook": number, "novelty": number,
+    "clarity": number, "shareability": number, "comment_bait": number}, "rationale": string,
+    "improvements": [string, ...]}
+  agent: quality_judge_agent
+  context: [write_thread]
+  verbose: true
+
+review_and_judge_task:
+  description: >
+    스레드의 강/약점을 항목별로 진단하고, 3가지 다른 스타일의 개선안(보수/중간/공격적)을 제안한다.
+    바이럴 점수의 타당성을 검토하고 필요 시 보정 근거를 제시한다.
+  expected_output: >
+    섹션 구성: 1) 총평(한 문단) 2) 강점 3) 개선 필요점 4) 보수/중간/공격적 리라이트 샘플
+    5) 최종 권고안(불필요한 클릭베이트 지양, 사실 검증 포인트 명시) 6) 점수 재검토 결과.
+  agent: quality_judge_agent
+  context: [write_thread, score_virality]
+  verbose: true

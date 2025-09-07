@@ -16,7 +16,8 @@ dependencies = [
     "langsmith",
     "python-dotenv",
     "yfinance",
-    "crewai",
+    "crewai[tools]",
     "crewai-tools",
     "pydantic",
+    "firecrawl-py>=4.3.5",
 ]
