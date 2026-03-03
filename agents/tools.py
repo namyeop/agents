@@ -1,5 +1,6 @@
 from firecrawl import Firecrawl
 from crewai.tools import tool
+from tavily import TavilyClient
 import os
 
 
@@ -22,3 +23,20 @@ def firecrawl_search(query: str, num_results: int = 5):
     )
 
     return results
+
+
+@tool
+def tavily_search(query: str):
+    """
+    Perform a web search using the Tavily API.
+
+    Args:
+        query (str): The search query.
+
+    Returns:
+        list[dict]: A list of search results, each represented as a dictionary.
+    """
+    client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))  # type: ignore
+    response = client.search(query=query)
+
+    return response

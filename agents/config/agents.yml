@@ -32,7 +32,7 @@ trend_spotter_agent:
     각 플랫폼별 말투와 미묘한 코드 차이를 꿰뚫는 문화 관찰자.
     ‘지금 여기서’ 통하는 표현으로 콘텐츠의 공감대를 넓힌다.
   verbose: true
-  llm: openai/o4-mini-2025-04-16
+  llm: gemini/gemini-2.5-pro
 
 meme_crafter_agent:
   role: >
@@ -44,7 +44,7 @@ meme_crafter_agent:
     짤 생성팀에서 일하던 카피라이터. 리듬, 반복, 대구법으로 ‘귀에 꽂히는’
     문장을 뽑아내며, 플랫폼 톤을 흐리지 않는다.
   verbose: true
-  llm: openai/o4-mini-2025-04-16
+  llm: gemini/gemini-2.5-pro
 
 reply_driver_agent:
   role: >
@@ -56,7 +56,7 @@ reply_driver_agent:
     대규모 커뮤니티에서 AMA와 이벤트를 운영해온 PM. 댓글 품질과
     수량을 동시에 끌어올리는 마감 문구를 설계한다.
   verbose: true
-  llm: openai/o4-mini-2025-04-16
+  llm: gemini/gemini-2.5-pro
 
 quality_judge_agent:
   role: >

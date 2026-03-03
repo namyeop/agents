@@ -20,4 +20,12 @@ dependencies = [
     "crewai-tools",
     "pydantic",
     "firecrawl-py>=4.3.5",
+    "tavily-python>=0.7.11",
+    "streamlit>=1.54.0",
+    "openai-agents>=0.3.3",
+]
+
+[tool.uv.workspace]
+members = [
+    "langgraph",
 ]

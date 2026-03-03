@@ -1,0 +1,10 @@
+services:
+  uv:
+    build:
+      context: .
+      dockerfile: ../dockerfile
+    volumes:
+      - .:/app
+    ports:
+      - 8501:8501
+    entrypoint: ["tail", "-f", "/dev/null"]
