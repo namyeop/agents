@@ -1,11 +1,18 @@
 import dotenv
 
 dotenv.load_dotenv()
-import time
 import asyncio
+import base64
 from openai import OpenAI
 import streamlit as st
-from agents import Agent, Runner, SQLiteSession, WebSearchTool, FileSearchTool
+from agents import (
+    Agent,
+    Runner,
+    SQLiteSession,
+    WebSearchTool,
+    FileSearchTool,
+    ImageGenerationTool,
+)
 
 client = OpenAI()
 
@@ -15,17 +22,29 @@ if "agent" not in st.session_state:
     st.session_state["agent"] = Agent(
         name="Life Coach",
         instructions="""
-        당신은 일상의 라이프스타일을 코칭합니다..
+        당신은 일상의 라이프스타일을 코칭하는 라이프 코치입니다.
 
-        You have access to the followign tools:
-            - Web Search Tool: Use this when the user asks a questions that isn't in your training data. Use this tool when the users asks about current or future events, when you think you don't know the answer, try searching for it in the web first.
-            - File Search Tool: Use this tool when the user asks a question about facts related to themselves. Or when they ask questions about specific files.
+        You have access to the following tools:
+            - Web Search Tool: Use this when the user asks a questions that isn't in your training data. Use this tool when the users asks about current or future events, when you think you don't know the answer, try searching for it in the web first. 조언, 팁, 동기부여 콘텐츠를 검색할 때 사용하세요.
+            - File Search Tool: Use this tool when the user asks a question about facts related to themselves. Or when they ask questions about specific files. 개인 목표 및 일기를 참조할 때 사용하세요.
+            - Image Generation Tool: Use this tool to create visual content for the user. 다음과 같은 이미지를 생성할 수 있습니다:
+                - 목표 기반 비전 보드 (Vision Board): 사용자의 목표를 시각적으로 표현
+                - 맞춤 메시지가 담긴 동기부여 포스터 (Motivational Poster): 영감을 주는 이미지와 메시지
+                - 진행 상황의 시각적 표현: 사용자의 성장과 발전을 이미지로 표현
         """,
         tools=[
             WebSearchTool(),
             FileSearchTool(
                 vector_store_ids=[VECTOR_STORE_ID],
                 max_num_results=3,
+            ),
+            ImageGenerationTool(
+                tool_config={
+                    "type": "image_generation",
+                    "quality": "high",
+                    "output_format": "jpeg",
+                    "partial_images": 1,
+                }
             ),
         ],
     )
@@ -46,16 +65,31 @@ async def paint_history():
         if "role" in message:
             with st.chat_message(message["role"]):
                 if message["role"] == "user":
-                    st.write(message["content"])
+                    content = message["content"]
+                    if isinstance(content, str):
+                        st.write(content)
+                    elif isinstance(content, list):
+                        for part in content:
+                            if "image_url" in part:
+                                st.image(part["image_url"])
                 else:
                     if message["type"] == "message":
-                        st.write(message["content"][0]["text"])
-        if "type" in message and message["type"] == "web_search_call":
-            with st.chat_message("ai"):
-                st.write("🔍 Searched the web...")
-        if "type" in message and message["type"] == "file_search_call":
-            with st.chat_message("ai"):
-                st.write("📚 Searched the files...")
+                        st.write(message["content"][0]["text"].replace("$", "\$"))
+        if "type" in message:
+            message_type = message["type"]
+            if message_type == "web_search_call":
+                with st.chat_message("ai"):
+                    st.write("🔍 Searched the web...")
+            elif message_type == "file_search_call":
+                with st.chat_message("ai"):
+                    st.write("📚 Searched the files...")
+            elif message_type == "image_generation_call":
+                image = base64.b64decode(message["result"])
+                with st.chat_message("ai"):
+                    st.image(image)
+
+
+asyncio.run(paint_history())
 
 
 def update_status(status_container, event):
@@ -82,6 +116,14 @@ def update_status(status_container, event):
             "📚 File search in progress...",
             "running",
         ),
+        "response.image_generation_call.generating": (
+            "🎨 Drawing image...",
+            "running",
+        ),
+        "response.image_generation_call.in_progress": (
+            "🎨 Drawing image...",
+            "running",
+        ),
         "response.completed": (" ", "complete"),
     }
 
@@ -90,13 +132,11 @@ def update_status(status_container, event):
         status_container.update(label=label, state=state)
 
 
-asyncio.run(paint_history())
-
-
 async def run_agent(message):
     with st.chat_message("ai"):
         status_container = st.status("⏳", expanded=False)
         text_placeholder = st.empty()
+        image_placeholder = st.empty()
         response = ""
 
         stream = Runner.run_streamed(
@@ -112,13 +152,26 @@ async def run_agent(message):
 
                 if event.data.type == "response.output_text.delta":
                     response += event.data.delta
-                    text_placeholder.write(response)
+                    text_placeholder.write(response.replace("$", "\$"))
+
+                elif event.data.type == "response.image_generation_call.partial_image":
+                    image = base64.b64decode(event.data.partial_image_b64)
+                    image_placeholder.image(image)
+
+                elif event.data.type == "response.completed":
+                    image_placeholder.empty()
+                    text_placeholder.empty()
 
 
 prompt = st.chat_input(
     "Write a message for your assistant",
     accept_file=True,
-    file_type=["txt"],
+    file_type=[
+        "txt",
+        "jpg",
+        "jpeg",
+        "png",
+    ],
 )
 
 if prompt:
@@ -137,6 +190,30 @@ if prompt:
                         file_id=uploaded_file.id,
                     )
                     status.update(label="✅ File uploaded", state="complete")
+        elif file.type.startswith("image/"):
+            with st.status("⏳ Uploading image...") as status:
+                file_bytes = file.getvalue()
+                base64_data = base64.b64encode(file_bytes).decode("utf-8")
+                data_uri = f"data:{file.type};base64,{base64_data}"
+                asyncio.run(
+                    session.add_items(
+                        [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "input_image",
+                                        "detail": "auto",
+                                        "image_url": data_uri,
+                                    }
+                                ],
+                            }
+                        ]
+                    )
+                )
+                status.update(label="✅ Image uploaded", state="complete")
+            with st.chat_message("human"):
+                st.image(data_uri)
 
     if prompt.text:
         with st.chat_message("human"):
