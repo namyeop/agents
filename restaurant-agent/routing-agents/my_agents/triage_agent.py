@@ -1,5 +1,7 @@
 from agents import Agent
 from models import RestaurantContext
+from my_agents.complaints_agent import complaints_agent
+from my_agents.guardrails import restaurant_input_guardrail, restaurant_output_guardrail
 from my_agents.menu_agent import menu_agent
 from my_agents.order_agent import order_agent
 from my_agents.reservation_agent import reservation_agent
@@ -13,6 +15,7 @@ Your role is to welcome customers and quickly understand what they need, then ha
 - **Menu questions** (ingredients, allergens, prices, recommendations) → Hand off to Menu Agent
 - **Ordering** (placing an order, modifying an order) → Hand off to Order Agent
 - **Reservations** (booking a table, checking availability) → Hand off to Reservation Agent
+- **Complaints** (dissatisfaction, problems, issues with food/service) → Hand off to Complaints Agent
 
 Guidelines:
 - Always greet the customer warmly first
@@ -21,5 +24,7 @@ Guidelines:
 - Keep your responses brief - your job is to route, not to answer in detail
 - Respond in the same language as the customer
 """,
-    handoffs=[menu_agent, order_agent, reservation_agent],
+    handoffs=[menu_agent, order_agent, reservation_agent, complaints_agent],
+    input_guardrails=[restaurant_input_guardrail],
+    output_guardrails=[restaurant_output_guardrail],
 )
