@@ -62,35 +62,33 @@ st.caption("Korean-Italian Fusion Restaurant Bot")
 
 
 async def paint_history():
-    if st.session_state["transcript"]:
-        for entry in st.session_state["transcript"]:
-            with st.chat_message(entry["role"]):
-                if entry["role"] == "ai" and entry.get("agent_name"):
-                    st.caption(f"응답 에이전트: {entry['agent_name']}")
-                st.write(entry["content"].replace("$", r"\$"))
-        return
+    if not st.session_state["transcript"]:
+        messages = await session.get_items()
+        hydrated_transcript = []
+        for message in messages:
+            if "role" not in message:
+                continue
 
-    messages = await session.get_items()
-    hydrated_transcript = []
-    for message in messages:
-        if "role" not in message:
-            continue
+            if message["role"] == "user":
+                hydrated_transcript.append(
+                    {"role": "human", "content": message["content"]}
+                )
+            elif message.get("type") == "message":
+                hydrated_transcript.append(
+                    {
+                        "role": "ai",
+                        "content": message["content"][0]["text"],
+                        "agent_name": AGENT_DISPLAY_NAMES["Triage Agent"],
+                    }
+                )
 
-        if message["role"] == "user":
-            hydrated_transcript.append(
-                {"role": "human", "content": message["content"]}
-            )
-        elif message.get("type") == "message":
-            hydrated_transcript.append(
-                {
-                    "role": "ai",
-                    "content": message["content"][0]["text"],
-                    "agent_name": AGENT_DISPLAY_NAMES["Triage Agent"],
-                }
-            )
+        st.session_state["transcript"] = hydrated_transcript
 
-    st.session_state["transcript"] = hydrated_transcript
-    await paint_history()
+    for entry in st.session_state["transcript"]:
+        with st.chat_message(entry["role"]):
+            if entry["role"] == "ai" and entry.get("agent_name"):
+                st.caption(f"응답 에이전트: {entry['agent_name']}")
+            st.write(entry["content"].replace("$", r"\$"))
 
 
 asyncio.run(paint_history())
