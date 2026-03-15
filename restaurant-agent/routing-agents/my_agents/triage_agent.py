@@ -28,8 +28,3 @@ Guidelines:
     input_guardrails=[restaurant_input_guardrail],
     output_guardrails=[restaurant_output_guardrail],
 )
-
-menu_agent.handoffs = [order_agent, reservation_agent, complaints_agent]
-order_agent.handoffs = [menu_agent, reservation_agent, complaints_agent]
-reservation_agent.handoffs = [menu_agent, order_agent, complaints_agent]
-complaints_agent.handoffs = [triage_agent]
