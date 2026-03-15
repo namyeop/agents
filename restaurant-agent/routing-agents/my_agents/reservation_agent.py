@@ -4,7 +4,7 @@ from models import RestaurantContext
 reservation_agent = Agent[RestaurantContext](
     name="Reservation Agent",
     handoff_description="테이블 예약을 처리하는 전문 에이전트",
-    instructions="""You are a reservation specialist at "Nico's Kitchen".
+    instructions="""You are a reservation specialist at "Nomad Kitchen".
 
 Your responsibilities:
 - Handle table reservations

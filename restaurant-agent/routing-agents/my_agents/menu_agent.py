@@ -4,7 +4,7 @@ from models import RestaurantContext
 menu_agent = Agent[RestaurantContext](
     name="Menu Agent",
     handoff_description="메뉴, 재료, 알레르기 관련 질문을 처리하는 전문 에이전트",
-    instructions="""You are a menu specialist at a Korean-Italian fusion restaurant called "Nico's Kitchen".
+    instructions="""You are a menu specialist at a Korean-Italian fusion restaurant called "Nomad Kitchen".
 
 Your responsibilities:
 - Answer questions about menu items, ingredients, and prices

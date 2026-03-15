@@ -1,10 +1,15 @@
+import asyncio
+import os
+import streamlit as st
+
 import dotenv
 
-dotenv.load_dotenv()
-
-import asyncio
-import streamlit as st
-from agents import InputGuardrailTripwireTriggered, OutputGuardrailTripwireTriggered, Runner, SQLiteSession
+from agents import (
+    InputGuardrailTripwireTriggered,
+    OutputGuardrailTripwireTriggered,
+    Runner,
+    SQLiteSession,
+)
 from models import RestaurantContext
 from my_agents.triage_agent import triage_agent
 
@@ -16,10 +21,28 @@ AGENT_DISPLAY_NAMES = {
     "Complaints Agent": "😔 불만 처리 전문가",
 }
 
+st.set_page_config(page_title="Nomad Kitchen", page_icon="🍽️")
+
 restaurant_ctx = RestaurantContext(
     customer_id=1,
-    name="nico",
+    name="guest",
 )
+
+
+def configure_api_key() -> None:
+    dotenv.load_dotenv()
+
+    secret_api_key = None
+    try:
+        secret_api_key = st.secrets.get("OPENAI_API_KEY")
+    except Exception:
+        secret_api_key = None
+
+    if secret_api_key and not os.getenv("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = secret_api_key
+
+
+configure_api_key()
 
 if "session" not in st.session_state:
     st.session_state["session"] = SQLiteSession(
@@ -28,22 +51,46 @@ if "session" not in st.session_state:
     )
 session = st.session_state["session"]
 
+if "transcript" not in st.session_state:
+    st.session_state["transcript"] = []
+if "active_agent_name" not in st.session_state:
+    st.session_state["active_agent_name"] = AGENT_DISPLAY_NAMES["Triage Agent"]
 
-st.set_page_config(page_title="Nico's Kitchen", page_icon="🍽️")
-st.title("🍽️ Nico's Kitchen")
+
+st.title("🍽️ Nomad Kitchen")
 st.caption("Korean-Italian Fusion Restaurant Bot")
 
 
 async def paint_history():
+    if st.session_state["transcript"]:
+        for entry in st.session_state["transcript"]:
+            with st.chat_message(entry["role"]):
+                if entry["role"] == "ai" and entry.get("agent_name"):
+                    st.caption(f"응답 에이전트: {entry['agent_name']}")
+                st.write(entry["content"].replace("$", r"\$"))
+        return
+
     messages = await session.get_items()
+    hydrated_transcript = []
     for message in messages:
-        if "role" in message:
-            if message["role"] == "user":
-                with st.chat_message("human"):
-                    st.write(message["content"])
-            elif message["type"] == "message":
-                with st.chat_message("ai"):
-                    st.write(message["content"][0]["text"].replace("$", r"\$"))
+        if "role" not in message:
+            continue
+
+        if message["role"] == "user":
+            hydrated_transcript.append(
+                {"role": "human", "content": message["content"]}
+            )
+        elif message.get("type") == "message":
+            hydrated_transcript.append(
+                {
+                    "role": "ai",
+                    "content": message["content"][0]["text"],
+                    "agent_name": AGENT_DISPLAY_NAMES["Triage Agent"],
+                }
+            )
+
+    st.session_state["transcript"] = hydrated_transcript
+    await paint_history()
 
 
 asyncio.run(paint_history())
@@ -51,10 +98,13 @@ asyncio.run(paint_history())
 
 async def run_agent(message):
     with st.chat_message("ai"):
+        agent_placeholder = st.empty()
         text_placeholder = st.empty()
         handoff_placeholder = st.empty()
         response = ""
+        active_agent_name = AGENT_DISPLAY_NAMES["Triage Agent"]
 
+        agent_placeholder.caption(f"응답 에이전트: {active_agent_name}")
         st.session_state["text_placeholder"] = text_placeholder
         st.session_state["handoff_placeholder"] = handoff_placeholder
 
@@ -69,6 +119,9 @@ async def run_agent(message):
             if event.type == "agent_updated_stream_event":
                 agent_name = event.new_agent.name
                 display_name = AGENT_DISPLAY_NAMES.get(agent_name, agent_name)
+                active_agent_name = display_name
+                st.session_state["active_agent_name"] = display_name
+                agent_placeholder.caption(f"응답 에이전트: {display_name}")
                 handoff_placeholder.info(
                     f"{display_name}에게 연결합니다..."
                 )
@@ -79,6 +132,13 @@ async def run_agent(message):
                     text_placeholder.write(response.replace("$", r"\$"))
 
         handoff_placeholder.empty()
+        st.session_state["transcript"].append(
+            {
+                "role": "ai",
+                "content": response,
+                "agent_name": active_agent_name,
+            }
+        )
 
 
 GUARDRAIL_MESSAGES = {
@@ -96,19 +156,37 @@ if message:
 
     with st.chat_message("human"):
         st.write(message)
+    st.session_state["transcript"].append({"role": "human", "content": message})
     try:
         asyncio.run(run_agent(message))
     except InputGuardrailTripwireTriggered:
         with st.chat_message("ai"):
             st.warning(GUARDRAIL_MESSAGES["input"])
+        st.session_state["transcript"].append(
+            {
+                "role": "ai",
+                "content": GUARDRAIL_MESSAGES["input"],
+                "agent_name": "입력 가드레일",
+            }
+        )
     except OutputGuardrailTripwireTriggered:
         with st.chat_message("ai"):
             st.warning(GUARDRAIL_MESSAGES["output"])
+        st.session_state["transcript"].append(
+            {
+                "role": "ai",
+                "content": GUARDRAIL_MESSAGES["output"],
+                "agent_name": "출력 가드레일",
+            }
+        )
 
 
 with st.sidebar:
     st.header("⚙️ 설정")
+    st.info(f"현재 응답 에이전트: {st.session_state['active_agent_name']}")
     reset = st.button("🗑️ 대화 초기화")
     if reset:
         asyncio.run(session.clear_session())
+        st.session_state["transcript"] = []
+        st.session_state["active_agent_name"] = AGENT_DISPLAY_NAMES["Triage Agent"]
         st.rerun()

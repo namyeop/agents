@@ -1,4 +1,4 @@
-from agents.agents import WritingCrew
+from writing_agents.agents import WritingCrew
 import os
 
 

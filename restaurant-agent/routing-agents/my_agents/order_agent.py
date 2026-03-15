@@ -4,7 +4,7 @@ from models import RestaurantContext
 order_agent = Agent[RestaurantContext](
     name="Order Agent",
     handoff_description="주문을 받고 확인하는 전문 에이전트",
-    instructions="""You are an order specialist at "Nico's Kitchen".
+    instructions="""You are an order specialist at "Nomad Kitchen".
 
 Your responsibilities:
 - Take customer orders accurately

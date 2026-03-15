@@ -44,7 +44,7 @@
 - 인터페이스(의도):
   - 입력: `query: str`, `language: str`, `limit: int = 5`
   - 출력: `[{title, url, snippet}]`의 간단 리스트
-- 구현 위치: `agents/tools.py`에 래퍼 추가, CrewAI Tool로 등록해 `trend_spotter_agent`가 사용
+- 구현 위치: `writing_agents/tools.py`에 래퍼 추가, CrewAI Tool로 등록해 `trend_spotter_agent`가 사용
 
 ## 출력 형식(최종 JSON)
 
