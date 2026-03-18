@@ -1,10 +1,10 @@
-import json
 import base64
 from pathlib import Path
 
 from google.adk import Agent
 from google.adk.agents import SequentialAgent
 from google.adk.tools import ToolContext
+from google.genai import types
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
@@ -29,7 +29,7 @@ class Story(BaseModel):
 
 story_writer = Agent(
     name="story_writer",
-    model="gemini-3.0-flash",
+    model="gemini-2.5-flash",
     instruction="""당신은 어린이 동화 작가입니다.
 사용자가 제시한 테마를 바탕으로 5페이지 분량의 어린이 동화를 작성하세요.
 
@@ -79,22 +79,30 @@ def generate_illustrations(tool_context: ToolContext) -> str:
                 size="1024x1024",
             )
             image_b64 = response.data[0].b64_json
-            # 이미지를 파일로 저장
+            image_bytes = base64.b64decode(image_b64)
+
+            # 파일로 저장
             output_dir = Path("generated_stories") / story.title
             output_dir.mkdir(parents=True, exist_ok=True)
             image_path = output_dir / f"page_{page.page_number}.png"
-            image_path.write_bytes(base64.b64decode(image_b64))
+            image_path.write_bytes(image_bytes)
+
+            # ADK artifact로 저장 → Web UI에서 이미지 렌더링
+            artifact_part = types.Part.from_bytes(
+                data=image_bytes, mime_type="image/png"
+            )
+            tool_context.save_artifact(
+                filename=f"page_{page.page_number}.png",
+                artifact=artifact_part,
+            )
 
             results.append(
-                f"📖 페이지 {page.page_number}: 이미지 생성 완료 → {image_path}"
+                f"📖 페이지 {page.page_number}: {page.text}"
             )
         except Exception as e:
             results.append(
                 f"⚠️ 페이지 {page.page_number}: 이미지 생성 실패 - {e}"
             )
-
-    # 결과를 State에 저장
-    tool_context.state["illustration_results"] = "\n".join(results)
 
     summary = f"📚 '{story.title}' 삽화 생성 완료!\n\n" + "\n".join(results)
     return summary
@@ -104,7 +112,7 @@ def generate_illustrations(tool_context: ToolContext) -> str:
 
 illustrator = Agent(
     name="illustrator",
-    model="gemini-3.0-flash",
+    model="gemini-2.5-flash",
     instruction="""당신은 어린이 동화 삽화가입니다.
 generate_illustrations 도구를 호출하여 동화의 각 페이지에 대한 삽화를 생성하세요.
 도구 호출 후 결과를 사용자에게 보기 좋게 정리하여 보여주세요.
